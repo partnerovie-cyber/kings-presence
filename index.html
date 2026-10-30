@@ -1,0 +1,501 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0B1E43">
+<title>King's Presence</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --navy:       #0B1E43;   /* primary background */
+    --navy-deep:  #17396F;
+    --navy-edge:  #050d20;
+    --white:      #FFFFFF;
+    --icy:        #8FB2FF;   /* light accent */
+    --gold:       #E8C878;   /* glints (from the uploaded HTML) */
+    --cyan:       #00E5FF;   /* plasma / sheen / pulse (from the uploaded SVG) */
+    --plasma-blue:#2979FF;
+    --glass-line: #4A7FA7;
+
+    --W: min(94vw, 860px);   /* lockup width: everything inside scales from this */
+  }
+
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; background: var(--navy-edge); }
+
+  #kp-splash {
+    position: fixed; inset: 0; overflow: hidden; z-index: 9999;
+    display: grid; place-items: center;
+    background: radial-gradient(ellipse 70% 62% at 50% 50%, var(--navy-deep) 0%, var(--navy) 46%, #081531 78%, var(--navy-edge) 100%);
+    font-family: 'Outfit', system-ui, -apple-system, 'Segoe UI', sans-serif;
+    transition: opacity .6s ease;
+  }
+  #kp-splash.is-leaving { opacity: 0; pointer-events: none; }
+
+  /* ---------- plasma engine (from the SVG file): two blurred colour fields drifting ---------- */
+  #kp-particles { position: absolute; inset: 0; pointer-events: none; }
+  .kp-plasma { position: absolute; inset: 0; pointer-events: none; opacity: .2; mix-blend-mode: screen; }
+  .kp-plasma b {
+    position: absolute; border-radius: 50%; filter: blur(9vmax); will-change: transform, opacity;
+  }
+  .kp-plasma .p1 { left: 4%;  top: 22%; width: 58vmax; height: 58vmax; background: var(--cyan);        animation: kp-plasma-l 8s  ease-in-out infinite; }
+  .kp-plasma .p2 { right: -6%; top: 30%; width: 66vmax; height: 66vmax; background: var(--plasma-blue); animation: kp-plasma-r 10s ease-in-out infinite; }
+  @keyframes kp-plasma-l {
+    0%,100% { transform: translate(-6vmax,-4vmax) scale(1);   opacity: .3; }
+    50%     { transform: translate(8vmax, 3vmax)  scale(1.5); opacity: .6; filter: blur(9vmax) hue-rotate(40deg); }
+  }
+  @keyframes kp-plasma-r {
+    0%,100% { transform: translate(6vmax, 4vmax)  scale(1.3); opacity: .5; }
+    50%     { transform: translate(-6vmax,-3vmax) scale(.9);  opacity: .2; filter: blur(9vmax) hue-rotate(-25deg); }
+  }
+  .kp-vignette { position: absolute; inset: 0; pointer-events: none;
+    background: radial-gradient(ellipse 62% 56% at 50% 50%, transparent 55%, rgba(3, 8, 20, .55) 100%); }
+  .kp-core {
+    position: absolute; left: 50%; top: 50%; width: 80vmin; height: 80vmin; margin: -40vmin 0 0 -40vmin;
+    border-radius: 50%; opacity: 0; pointer-events: none; filter: blur(2px);
+    background: radial-gradient(circle, rgba(143,178,255,.55) 0%, rgba(143,178,255,.18) 32%, rgba(143,178,255,0) 68%);
+  }
+
+  /* ---------- lockup (glass pill is its background) ---------- */
+  .kp-row {
+    position: relative; z-index: 2;
+    display: flex; align-items: center; gap: calc(var(--W) * .03);
+    padding: calc(var(--W) * .05) calc(var(--W) * .06);
+  }
+  .kp-pill {
+    position: absolute; inset: 0; z-index: -1; border-radius: calc(var(--W) * .11); opacity: 0;
+    background: linear-gradient(135deg, rgba(255,255,255,.15), rgba(74,127,167,.03));   /* pillGlass */
+    border: 1.1px solid rgba(74,127,167,.45);
+    -webkit-backdrop-filter: blur(14px) saturate(140%); backdrop-filter: blur(14px) saturate(140%);
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.28), 0 24px 60px rgba(0,8,30,.4), 0 0 50px rgba(143,178,255,.14);
+  }
+  .kp-sheen-clip { position: absolute; inset: 0; border-radius: inherit; overflow: hidden; pointer-events: none; }
+  .kp-sheen {
+    position: absolute; top: 0; bottom: 0; left: 0; width: 34%;
+    background: linear-gradient(90deg, rgba(255,255,255,0), rgba(0,229,255,.42), rgba(255,255,255,0));  /* sheenReflect */
+    transform: translateX(-140%) skewX(-25deg); opacity: 0;
+  }
+  .is-sheen .kp-sheen { opacity: 1; animation: kp-sheen 3.5s cubic-bezier(.25,1,.5,1) infinite; }
+  @keyframes kp-sheen {
+    0%       { transform: translateX(-140%) skewX(-25deg); }
+    30%,100% { transform: translateX(420%)  skewX(-25deg); }
+  }
+
+  .kp-emblem-glow { position: relative; width: calc(var(--W) * .15); flex: none; transform-origin: 50% 50%; will-change: transform; }
+  .is-settled .kp-emblem-glow svg { animation: kp-icon-pulse 2s ease-in-out infinite; }   /* iconPulse */
+  @keyframes kp-icon-pulse {
+    0%,100% { filter: drop-shadow(0 0 1px rgba(0,229,255,.35)); }
+    50%     { filter: drop-shadow(0 0 4px rgba(0,229,255,.6)); }
+  }
+  .kp-emblem-glow svg { display: block; width: 100%; height: auto; overflow: visible; }
+  .kp-fill  { fill: var(--white); opacity: 0; }
+  .kp-trace { fill: none; stroke: var(--icy); stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; opacity: 0; filter: url(#kp-trace-glow); }
+
+  .kp-divider {
+    flex: none; width: 2px; height: calc(var(--W) * .12); opacity: 0; transform-origin: 50% 50%;
+    background: linear-gradient(180deg, rgba(143,178,255,0), rgba(143,178,255,.95), rgba(143,178,255,0));
+    box-shadow: 0 0 14px 2px rgba(143,178,255,.5);
+  }
+  .kp-word {
+    margin: 0; flex: none; white-space: nowrap; opacity: 0;
+    font-weight: 600; letter-spacing: .01em; line-height: 1;
+    font-size: calc(var(--W) * .068); color: #bcd0ff;
+  }
+  .kp-word .ap { font-weight: 500; }
+
+  /* ---------- light layers ---------- */
+  .kp-disc, .kp-burst, .kp-glint, .kp-particle { position: absolute; pointer-events: none; opacity: 0; }
+  .kp-disc {
+    left: 50%; top: 50%; border-radius: 50%; z-index: 1;
+    background: radial-gradient(circle, #091a3b 0%, #07142e 62%, rgba(7,20,46,.0) 100%);
+    box-shadow: 0 0 0 1px rgba(143,178,255,.22), 0 0 60px rgba(143,178,255,.28);
+  }
+  .kp-burst {
+    left: 50%; top: 50%; width: 56vmin; height: 56vmin; margin: -28vmin 0 0 -28vmin; border-radius: 50%; z-index: 1;
+    background: radial-gradient(circle, rgba(255,255,255,.65) 0%, rgba(232,200,120,.28) 30%, rgba(143,178,255,.14) 55%, rgba(143,178,255,0) 72%);
+  }
+  .kp-streak {
+    position: absolute; left: 50%; top: 50%; width: 160vmin; height: 5px; margin: -2.5px 0 0 -80vmin; z-index: 3;
+    background: linear-gradient(90deg, rgba(255,255,255,0), rgba(143,178,255,.05) 20%, rgba(255,255,255,.9) 50%, rgba(232,200,120,.25) 70%, rgba(255,255,255,0));
+    mix-blend-mode: screen; opacity: 0; pointer-events: none; filter: blur(.4px);
+  }
+  .kp-glint { width: 60px; height: 60px; margin: -30px 0 0 -30px; border-radius: 50%; mix-blend-mode: screen; z-index: 3;
+    background: radial-gradient(circle, rgba(232,200,120,.95) 0%, rgba(232,200,120,.35) 45%, rgba(232,200,120,0) 75%); }
+  .kp-particle { border-radius: 50%; z-index: 3;
+    background: radial-gradient(circle, rgba(255,255,255,.95) 0%, rgba(143,178,255,.5) 45%, rgba(143,178,255,0) 75%); }
+  .kp-particle.gold { background: radial-gradient(circle, rgba(232,200,120,.95) 0%, rgba(232,200,120,.4) 45%, rgba(232,200,120,0) 75%); }
+
+  /* preview-only replay button; delete this element and its handler when you ship */
+  #kp-replay {
+    position: absolute; right: 24px; bottom: calc(24px + env(safe-area-inset-bottom)); z-index: 10; opacity: 0; transition: opacity .3s;
+    font: 500 13px 'Outfit', system-ui, sans-serif; letter-spacing: .5px; color: rgba(220,230,255,.6);
+    background: rgba(255,255,255,.05); border: 1px solid rgba(255,255,255,.12); padding: 8px 14px; border-radius: 30px; cursor: pointer;
+  }
+  #kp-replay:focus-visible { outline: 2px solid var(--icy); outline-offset: 3px; }
+
+  @media (prefers-reduced-motion: reduce) {
+    .kp-plasma b, .is-settled .kp-emblem-glow svg, .is-sheen .kp-sheen { animation: none !important; }
+    .kp-plasma b { opacity: .3; }
+    .kp-sheen { display: none; }
+    #kp-replay { transition: none; }
+  }
+  #app { min-height: 100%; }
+</style>
+</head>
+<body>
+
+<div id="kp-splash" role="img" aria-label="King's Presence">
+  <div class="kp-plasma" aria-hidden="true"><b class="p1"></b><b class="p2"></b></div>
+  <div class="kp-core"></div>
+  <div class="kp-vignette"></div>
+
+  <svg width="0" height="0" style="position:absolute" aria-hidden="true">
+    <defs>
+      <filter id="kp-trace-glow" x="-60%" y="-60%" width="220%" height="220%">
+        <feGaussianBlur stdDeviation="2.2" result="b"/>
+        <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+      </filter>
+      <linearGradient id="kp-sweep-grad" x1="0" y1="0" x2="1" y2="0.25">
+        <stop offset="0%"  stop-color="#ffffff" stop-opacity="0"/>
+        <stop offset="48%" stop-color="#ffffff" stop-opacity=".85"/>
+        <stop offset="100%" stop-color="#ffffff" stop-opacity="0"/>
+      </linearGradient>
+    </defs>
+  </svg>
+
+  <div class="kp-disc" id="kp-disc"></div>
+  <div class="kp-burst" id="kp-burst"></div>
+  <div id="kp-particles" aria-hidden="true"></div>
+
+  <div class="kp-row" id="kp-row">
+    <div class="kp-pill" id="kp-pill"><div class="kp-sheen-clip"><div class="kp-sheen"></div></div></div>
+
+    <div class="kp-emblem-glow" id="kp-emblem">
+      <svg viewBox="0 0 273.9 300" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" focusable="false">
+        <defs><clipPath id="kp-silhouette"></clipPath></defs>
+        <g id="kp-fills"></g>
+        <g clip-path="url(#kp-silhouette)"><rect id="kp-sweep" x="-160" y="-20" width="90" height="340" fill="url(#kp-sweep-grad)"/></g>
+        <g id="kp-traces"></g>
+      </svg>
+    </div>
+
+    <span class="kp-divider" id="kp-divider"></span>
+    <p class="kp-word" id="kp-word">King<span class="ap">’</span>s&nbsp;Presence</p>
+  </div>
+
+  <div class="kp-streak" id="kp-streak"></div>
+  <button id="kp-replay" type="button" aria-label="Replay the logo reveal">↻ Replay</button>
+</div>
+
+<div id="app"></div>
+
+<script>
+/* ===========================================================================
+   TIMING — every moment of the sequence, in milliseconds. Edit these to retime.
+   =========================================================================== */
+var T = {
+  ghostStart: 320,  ghostStagger: 150, ghostDur: 600,     // 1  emblem emerges dim, top ribbon first
+  traceStart: 500,  traceEnd: 1450,                       //    icy light runs along the contours
+  sweepStart: 900,  sweepDur: 900,                        //    white sheen crosses the emblem
+  litStart:  1300,  litDur: 400,                          // 2  emblem lights up inside the dark disc
+  pulse1:    1500,                                        // 3  first pulse (video: ~1.7 s)
+  pulse2:    2150,                                        //    second pulse (video: ~2.3 s)
+  glideStart: 2700, glideEnd: 3500,                       // 4  shrinks and glides left into the lockup
+  dividerStart: 3200,
+  wordStart: 3300,  wordDur: 1000, wordColorEnd: 4400,    // 5  wordmark slides in, grey -> white
+  pillStart: 3300,  pillDur: 700,                         //    glass pill forms around the lockup
+  sheenStart: 4000,                                       //    cyan sheen starts crossing the glass
+  finalStart: 4400,                                       // 6  final burst, light streak, particles
+  settledStart: 5200,                                     //    gentle cyan emblem pulse begins
+  handoff: 5800                                           //    kp:splash-complete fires
+};
+
+/* Emblem geometry: the logo from the supplied King's Presence HTML (viewBox 273.9 x 300). */
+var LOGO = [
+  "M 253.01,101.20 C 248.73,104.75 245.45,124.36 234.14,136.14 C 222.82,147.93 201.34,163.52 185.14,171.89 C 168.94,180.25 154.55,183.94 136.95,186.35 C 119.34,188.76 98.33,170.95 79.52,186.35 C 60.71,201.74 31.73,259.91 24.10,278.71 C 16.47,297.52 22.76,310.58 33.73,299.20 C 44.71,287.82 68.21,225.84 89.96,210.44 C 111.71,195.05 141.30,212.58 164.26,206.83 C 187.22,201.07 212.05,187.55 227.71,175.90 C 243.37,164.26 252.88,147.12 258.23,136.95 C 263.59,126.77 260.71,120.82 259.84,114.86 C 258.97,108.90 257.30,97.66 253.01,101.20 Z",
+  "M 235.74,90.76 C 236.48,84.20 225.17,81.06 216.06,85.14 C 206.96,89.22 193.78,107.23 181.12,115.26 C 168.47,123.29 150.74,129.52 140.16,133.33 C 129.59,137.15 131.12,137.28 117.67,138.15 C 104.22,139.02 79.05,122.09 59.44,138.55 C 39.83,155.02 7.97,217.00 0.00,236.95 C -7.97,256.89 0.13,270.68 11.65,258.23 C 23.16,245.78 49.53,178.31 69.08,162.25 C 88.62,146.18 111.18,164.32 128.92,161.85 C 146.65,159.37 161.71,153.61 175.50,147.39 C 189.29,141.16 201.61,133.94 211.65,124.50 C 221.69,115.06 235.01,97.32 235.74,90.76 Z",
+  "M 21.29,48.59 C -9.97,52.54 -2.95,68.01 31.33,71.89 C 65.60,75.77 188.55,69.95 226.91,71.89 C 265.26,73.83 253.61,79.59 261.45,83.53 C 269.28,87.48 273.43,97.46 273.90,95.58 C 274.36,93.71 267.94,78.25 264.26,72.29 C 260.58,66.33 259.37,63.86 251.81,59.84 C 244.24,55.82 257.30,50.07 218.88,48.19 C 180.46,46.32 52.54,44.65 21.29,48.59 Z",
+  "M 1.61,0.80 C -30.99,4.48 -23.90,19.88 10.44,23.69 C 44.78,27.51 170.08,22.29 207.63,23.69 C 245.18,25.10 227.91,27.91 235.74,32.13 C 243.57,36.35 253.08,50.07 254.62,49.00 C 256.16,47.93 248.13,31.39 244.98,25.70 C 241.83,20.01 242.24,18.88 235.74,14.86 C 229.25,10.84 245.05,3.95 206.02,1.61 C 167.00,-0.74 34.20,-2.88 1.61,0.80 Z"
+];
+var REVEAL_ORDER = [3, 2, 1, 0];   // top ribbon first
+
+var NS = 'http://www.w3.org/2000/svg';
+var $ = function (id) { return document.getElementById(id); };
+var splash = $('kp-splash'), row = $('kp-row'), emblem = $('kp-emblem'), word = $('kp-word');
+var fillsG = $('kp-fills'), tracesG = $('kp-traces'), clip = $('kp-silhouette');
+var fills = [], traces = [];
+
+LOGO.forEach(function (d) {
+  var f = document.createElementNS(NS, 'path'); f.setAttribute('d', d); f.setAttribute('class', 'kp-fill'); fillsG.appendChild(f); fills.push(f);
+  var c = document.createElementNS(NS, 'path'); c.setAttribute('d', d); clip.appendChild(c);
+  var t = document.createElementNS(NS, 'path'); t.setAttribute('d', d); t.setAttribute('class', 'kp-trace'); tracesG.appendChild(t); traces.push(t);
+});
+traces.forEach(function (t) {
+  var len = t.getTotalLength(), dash = len * 0.16;
+  t.setAttribute('stroke-dasharray', dash + ' ' + (len - dash));
+  t._len = len;
+});
+
+/* ---------- tiny timeline helper: one Web Animation per element, keyed by absolute ms ---------- */
+var anims = [], timers = [];
+var E = {
+  out:   'cubic-bezier(.22,.8,.24,1)',
+  inOut: 'cubic-bezier(.65,0,.25,1)',
+  back:  'cubic-bezier(.34,1.3,.64,1)',
+  sineOut: 'cubic-bezier(.39,.575,.565,1)',
+  sineIn:  'cubic-bezier(.47,0,.745,.715)',
+  lin: 'linear'
+};
+function track(el, frames) {
+  var t0 = frames[0].t, d = frames[frames.length - 1].t - t0;
+  var kf = frames.map(function (f) {
+    var o = { offset: d ? (f.t - t0) / d : 0 };
+    for (var k in f) if (k !== 't' && k !== 'ease') o[k] = f[k];
+    if (f.ease) o.easing = f.ease;
+    return o;
+  });
+  var a = el.animate(kf, { delay: t0, duration: d, fill: 'both', easing: 'linear' });
+  anims.push(a); return a;
+}
+function at(ms, fn) { timers.push(setTimeout(fn, ms)); }
+
+/* ---------- particles (built once) ---------- */
+var pl = $('kp-particles'), ambient = [], motion = [], resolve = [];
+function particle(css, size, gold) {
+  var p = document.createElement('div'); p.className = 'kp-particle' + (gold ? ' gold' : '');
+  p.style.width = p.style.height = size + 'px'; p.style.marginLeft = p.style.marginTop = (-size / 2) + 'px';
+  p.style.filter = 'blur(' + Math.max(.6, size * .06) + 'px)';
+  for (var k in css) p.style[k] = css[k];
+  pl.appendChild(p); return p;
+}
+[[27, 23, 5], [81, 38, 6], [74, 21, 4], [19, 41, 4], [54, 14, 3], [85, 47, 5]].forEach(function (a) {
+  ambient.push(particle({ left: a[0] + '%', top: a[1] + '%' }, a[2]));
+});
+[[14, -10, 7], [22, -3, 6], [8, 5, 6], [-3, 9, 5], [18, -7, 5, 1], [4, -13, 5, 1]].forEach(function (a) {
+  motion.push(particle({ left: 'calc(50% + ' + a[0] + 'vmin)', top: 'calc(50% + ' + a[1] + 'vmin)' }, a[2], a[3]));
+});
+for (var i = 0; i < 10; i++) resolve.push(particle({ left: '50%', top: '50%' }, 5 + (i % 3) * 2, i % 3 === 0));
+var glints = [0, 1].map(function () { var g = document.createElement('div'); g.className = 'kp-glint'; splash.appendChild(g); return g; });
+
+/* ---------- build + run ---------- */
+function measure() {
+  // layout is final here (animations cancelled): where must the emblem start so it sits at screen centre?
+  emblem.style.transform = 'none';
+  var er = emblem.getBoundingClientRect(), sr = splash.getBoundingClientRect();
+  var shift = (sr.left + sr.width / 2) - (er.left + er.width / 2);
+  var cy = (er.top + er.height / 2) - sr.top;
+  var S0 = Math.max(1.6, Math.min(3.4, Math.min(sr.width, sr.height) * 0.30 / er.width));
+  return { shift: shift, S0: S0, ew: er.width, eh: er.height, cy: cy, cx: sr.width / 2, sr: sr };
+}
+
+function run(freezeAt) {
+  stop();
+  var m = measure(), S0 = m.S0, sh = m.shift;
+  var tf = function (x, s) { return 'translateX(' + x + 'px) scale(' + s + ')'; };
+
+  // emblem: emerge, double pulse, shrink + glide left
+  var P = T.pulse1, Q = T.pulse2;
+  track(emblem, [
+    { t: 300,          transform: tf(sh, S0 * .8),  ease: E.back },
+    { t: T.litStart,   transform: tf(sh, S0),       ease: E.lin },
+    { t: P,            transform: tf(sh, S0),       ease: E.sineOut },
+    { t: P + 250,      transform: tf(sh, S0 * 1.13), ease: E.out },
+    { t: P + 600,      transform: tf(sh, S0),       ease: E.lin },
+    { t: Q,            transform: tf(sh, S0),       ease: E.sineOut },
+    { t: Q + 250,      transform: tf(sh, S0 * 1.09), ease: E.out },
+    { t: Q + 550,      transform: tf(sh, S0),       ease: E.lin },
+    { t: T.glideStart, transform: tf(sh, S0),       ease: E.inOut },
+    { t: T.glideEnd,   transform: tf(0, 1) }
+  ]);
+
+  // ribbons: dim top-to-bottom emergence, then full white
+  REVEAL_ORDER.forEach(function (idx, i) {
+    var s = T.ghostStart + i * T.ghostStagger;
+    track(fills[idx], [
+      { t: s,                 opacity: 0,   ease: E.out },
+      { t: s + T.ghostDur,    opacity: .3,  ease: E.lin },
+      { t: T.litStart + i * 50, opacity: .3, ease: E.out },
+      { t: T.litStart + i * 50 + T.litDur, opacity: 1 }
+    ]);
+  });
+  traces.forEach(function (tr) {
+    track(tr, [
+      { t: T.traceStart,        opacity: 0,   strokeDashoffset: 0,        ease: E.sineOut },
+      { t: T.traceStart + 180,  opacity: .85, strokeDashoffset: -tr._len * .12, ease: E.lin },
+      { t: T.traceEnd - 330,    opacity: .85, strokeDashoffset: -tr._len * .85, ease: E.sineIn },
+      { t: T.traceEnd,          opacity: 0,   strokeDashoffset: -tr._len }
+    ]);
+  });
+  track($('kp-sweep'), [
+    { t: T.sweepStart, transform: 'translateX(0px)', ease: 'cubic-bezier(.45,0,.55,1)' },
+    { t: T.sweepStart + T.sweepDur, transform: 'translateX(430px)' }
+  ]);
+
+  // dark disc behind the lit emblem (as in the reference), then it dissolves into the glide
+  var dd = m.ew * S0 * 1.7, disc = $('kp-disc');
+  disc.style.width = disc.style.height = dd + 'px';
+  disc.style.marginLeft = (-dd / 2) + 'px'; disc.style.marginTop = (-dd / 2) + 'px';
+  disc.style.top = m.cy + 'px';
+  track(disc, [
+    { t: T.litStart - 200, opacity: 0, transform: 'scale(.55)', ease: E.out },
+    { t: T.litStart + 250, opacity: 1, transform: 'scale(1)',   ease: E.lin },
+    { t: T.glideStart,     opacity: 1, transform: 'scale(1)',   ease: E.sineIn },
+    { t: T.glideStart + 600, opacity: 0, transform: 'scale(.7)' }
+  ]);
+
+  // light: core glow, bursts, glints, streak
+  var core = document.querySelector('.kp-core');
+  core.style.top = m.cy + 'px';
+  track(core, [
+    { t: 0,    opacity: 0,   transform: 'scale(.2)',  ease: E.sineOut },
+    { t: 700,  opacity: 1,   transform: 'scale(.55)', ease: E.sineOut },
+    { t: 1600, opacity: .65, transform: 'scale(.75)', ease: E.sineInOut || E.inOut },
+    { t: T.finalStart, opacity: .4, transform: 'scale(.62)', ease: E.inOut },
+    { t: 5600, opacity: .22, transform: 'scale(.62)' }
+  ]);
+  var burst = $('kp-burst'); burst.style.top = m.cy + 'px';
+  track(burst, [
+    { t: P,       opacity: 0,  transform: 'scale(.2)', ease: E.sineOut },
+    { t: P + 160, opacity: .75, transform: 'scale(.9)', ease: E.sineIn },
+    { t: P + 700, opacity: 0,  transform: 'scale(1.8)' }
+  ]);
+  var burst2 = burst.cloneNode(); burst2.removeAttribute('id'); splash.insertBefore(burst2, burst.nextSibling); burst2._clone = true;
+  burst2.style.top = m.cy + 'px';
+  track(burst2, [
+    { t: Q,       opacity: 0,  transform: 'scale(.2)', ease: E.sineOut },
+    { t: Q + 140, opacity: .5, transform: 'scale(.8)', ease: E.sineIn },
+    { t: Q + 600, opacity: 0,  transform: 'scale(1.6)' }
+  ]);
+  var burst3 = burst.cloneNode(); burst3.removeAttribute('id'); splash.insertBefore(burst3, burst.nextSibling); burst3._clone = true;
+  burst3.style.top = m.cy + 'px';
+  track(burst3, [
+    { t: T.finalStart,       opacity: 0,  transform: 'scale(.3)', ease: E.sineOut },
+    { t: T.finalStart + 220, opacity: .8, transform: 'scale(1)',  ease: E.sineIn },
+    { t: T.finalStart + 800, opacity: 0,  transform: 'scale(1.9)' }
+  ]);
+  var gp = [[.34, -.30], [-.28, .22]];
+  glints.forEach(function (g, i) {
+    g.style.left = (m.cx + gp[i][0] * m.ew * S0) + 'px'; g.style.top = (m.cy + gp[i][1] * m.eh * S0) + 'px';
+    var s = (i ? Q : P) + 40;
+    track(g, [
+      { t: s,       opacity: 0,   transform: 'scale(.6)',  ease: E.sineOut },
+      { t: s + 220, opacity: .85, transform: 'scale(1.15)', ease: E.sineIn },
+      { t: s + 620, opacity: 0,   transform: 'scale(.7)' }
+    ]);
+  });
+  var st = $('kp-streak'); st.style.top = m.cy + 'px';
+  track(st, [
+    { t: T.finalStart + 20,  opacity: 0,   transform: 'translateX(-120%) rotate(-7deg)', ease: E.inOut },
+    { t: T.finalStart + 300, opacity: .75, transform: 'translateX(-20%) rotate(-7deg)',  ease: E.sineIn },
+    { t: T.finalStart + 520, opacity: 0,   transform: 'translateX(10%) rotate(-7deg)' }
+  ]);
+
+  // particles
+  ambient.forEach(function (p, i) {
+    track(p, [
+      { t: 50 + i * 50, opacity: 0,  transform: 'translate(0,0)', ease: E.sineOut },
+      { t: 650 + i * 50, opacity: .5, transform: 'translate(' + (i % 2 ? -4 : 6) + 'px,' + (i % 2 ? 4 : -4) + 'px)', ease: E.lin },
+      { t: 5500, opacity: .5, transform: 'translate(' + (i % 2 ? -10 : 14) + 'px,' + (i % 2 ? 12 : -10) + 'px)' }
+    ]);
+  });
+  motion.forEach(function (p, i) {
+    track(p, [
+      { t: 1350 + i * 30, opacity: 0,  transform: 'translate(0,0)', ease: E.sineOut },
+      { t: 1600 + i * 30, opacity: .8, transform: 'translate(0,-6px)', ease: E.sineIn },
+      { t: 2250 + i * 20, opacity: 0,  transform: 'translate(0,-22px)' }
+    ]);
+  });
+  resolve.forEach(function (p, i) {
+    var a = (i / 10) * Math.PI * 2, rx = (130 + (i % 3) * 30) * m.sr.width / 1080 * 1.2 + 40, ry = (90 + (i % 3) * 20) * m.sr.width / 1080 * 1.0 + 30;
+    p.style.top = m.cy + 'px';
+    track(p, [
+      { t: T.finalStart + 20 + i * 15, opacity: 0,  transform: 'translate(0,0)', ease: E.out },
+      { t: T.finalStart + 160 + i * 15, opacity: .9, transform: 'translate(' + (Math.cos(a) * rx * .35) + 'px,' + (Math.sin(a) * ry * .35) + 'px)', ease: E.lin },
+      { t: T.finalStart + 720 + i * 15, opacity: 0,  transform: 'translate(' + (Math.cos(a) * rx) + 'px,' + (Math.sin(a) * ry) + 'px)' }
+    ]);
+  });
+
+  // lockup: divider, wordmark (slide + grey->white), glass pill
+  track($('kp-divider'), [
+    { t: T.dividerStart,       opacity: 0,  transform: 'scaleY(0)', ease: E.out },
+    { t: T.dividerStart + 500, opacity: .9, transform: 'scaleY(1)', ease: E.sineOut },
+    { t: T.dividerStart + 1200, opacity: .55, transform: 'scaleY(1)' }
+  ]);
+  track(word, [
+    { t: T.wordStart, opacity: 0, transform: 'translateX(-36px)', ease: 'cubic-bezier(.16,1,.3,1)' },
+    { t: T.wordStart + T.wordDur, opacity: 1, transform: 'translateX(0)' }
+  ]);
+  track(word, [
+    { t: T.wordStart + 200, color: '#5d78b8', ease: E.inOut },
+    { t: T.wordColorEnd,    color: '#ffffff' }
+  ]);
+  track($('kp-pill'), [
+    { t: T.pillStart, opacity: 0, transform: 'scale(.96)', ease: E.out },
+    { t: T.pillStart + T.pillDur, opacity: 1, transform: 'scale(1)' }
+  ]);
+  at(T.sheenStart, function () { splash.classList.add('is-sheen'); });
+  at(T.settledStart, function () { splash.classList.add('is-settled'); });
+  at(T.handoff, finish);
+  at(T.finalStart + 900, function () { $('kp-replay').style.opacity = 1; });
+
+  if (typeof freezeAt === 'number') {     // ?t=1500 -> deterministic frame for review
+    timers.forEach(clearTimeout); timers = [];
+    anims.forEach(function (a) { a.pause(); a.currentTime = freezeAt; });
+    if (freezeAt >= T.sheenStart) splash.classList.add('is-sheen');
+    if (freezeAt >= T.settledStart) splash.classList.add('is-settled');
+    document.querySelectorAll('.kp-plasma b').forEach(function (b) {
+      b.getAnimations().forEach(function (a) { a.pause(); a.currentTime = freezeAt; });
+    });
+  }
+}
+
+function stop() {
+  anims.forEach(function (a) { a.cancel(); }); anims = [];
+  timers.forEach(clearTimeout); timers = [];
+  document.querySelectorAll('.kp-burst').forEach(function (b) { if (b._clone) b.remove(); });
+  splash.classList.remove('is-sheen', 'is-settled');
+  $('kp-replay').style.opacity = 0;
+}
+
+/* Reduced motion: show the finished lockup straight away. */
+function showFinal() {
+  emblem.style.transform = 'none';
+  fills.forEach(function (f) { f.style.opacity = 1; });
+  word.style.opacity = 1; word.style.color = '#fff'; word.style.transform = 'none';
+  $('kp-divider').style.opacity = .55; $('kp-pill').style.opacity = 1;
+  document.querySelector('.kp-core').style.opacity = .22;
+  $('kp-replay').style.opacity = 1;
+}
+
+var done = false;
+function finish() {
+  if (done) return; done = true;
+  document.dispatchEvent(new CustomEvent('kp:splash-complete'));
+}
+
+window.KPSplash = {
+  dismiss: function () {
+    splash.classList.add('is-leaving');
+    setTimeout(function () { stop(); splash.remove(); }, 650);
+  },
+  replay: function () { done = false; run(); }
+};
+
+$('kp-replay').addEventListener('click', function () { KPSplash.replay(); });
+
+var params = new URLSearchParams(location.search);
+var reduce = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
+function start() {
+  if (params.get('t') !== null) run(parseFloat(params.get('t')));
+  else if (reduce) { showFinal(); setTimeout(finish, 600); }
+  else run();
+}
+(document.fonts && document.fonts.ready ? document.fonts.ready : Promise.resolve()).then(function () {
+  requestAnimationFrame(start);
+});
+</script>
+</body>
+</html>
